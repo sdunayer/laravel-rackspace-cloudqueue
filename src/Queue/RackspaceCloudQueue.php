@@ -1,18 +1,24 @@
-<?php namespace Tailwind\RackspaceCloudQueue\Queue;
+<?php
 
+namespace Tailwind\RackspaceCloudQueue\Queue;
+
+use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Queue\Queue;
-use Illuminate\Queue\QueueInterface;
+use Illuminate\Support\Str;
+use Illuminate\Support\Arr;
+use RuntimeException;
+
 use OpenCloud\Common\Constants\Datetime;
 use OpenCloud\Queues\Resource\Queue as OpenCloudQueue;
 use OpenCloud\Queues\Service as OpenCloudService;
-use RuntimeException;
+
 use Tailwind\RackspaceCloudQueue\Queue\Jobs\RackspaceCloudQueueJob;
 
 /**
  * Class RackspaceCloudQueue
  * @package Tailwind\RackspaceCloudQueue\Queue
  */
-class RackspaceCloudQueue extends Queue implements QueueInterface
+class RackspaceCloudQueue extends Queue implements QueueContract
 {
     /**
      * The Rackspace OpenCloud Message Service instance.
@@ -22,25 +28,27 @@ class RackspaceCloudQueue extends Queue implements QueueInterface
     protected $openCloudService;
 
     /**
-     * The Rackspace OpenCloud Queue instance
-     *
-     * @var OpenCloudQueue
-     */
-    protected $queue;
-
-    /**
-     * The name of the default tube.
+     * The name of the default queue.
      *
      * @var string
      */
     protected $default;
 
     /**
-     * @param OpenCloudService $openCloudService
-     * @param                  $default
-     * @throws \OpenCloud\Common\Exceptions\InvalidArgumentError
+     * The Rackspace OpenCloud Queue instance
+     *
+     * @var OpenCloudQueue
      */
-    public function  __construct(OpenCloudService $openCloudService, $default)
+
+    protected $queue;
+
+    /**
+     * @param  OpenCloudService $openCloudService
+     * @param  string  $default
+     * @return void
+     * @throws OpenCloud\Common\Exceptions\InvalidArgumentError
+     */
+    public function  __construct(OpenCloudService $openCloudService, $default = 'default')
     {
         $this->openCloudService = $openCloudService;
         $this->default          = $default;
@@ -48,12 +56,27 @@ class RackspaceCloudQueue extends Queue implements QueueInterface
     }
 
     /**
+     * Get the size of the queue.
+     *
+     * @param  string|null  $queue
+     * @return int
+     */
+    public function size($queue = null)
+    {
+        $cloudQueue = $this->getQueue($queue);
+        $queueStats = $cloudQueue->getStats();
+
+        return $queueStats !== false ? $queueStats->messages->total : 0;
+    }
+
+
+    /**
      * Push a new job onto the queue.
      *
      * @param  string $job
      * @param  mixed  $data
      * @param  string $queue
-     * @return mixed
+     * @return bool
      */
     public function push($job, $data = '', $queue = null)
     {
@@ -70,7 +93,7 @@ class RackspaceCloudQueue extends Queue implements QueueInterface
      */
     public function pushRaw($payload, $queue = null, array $options = array())
     {
-        $ttl = array_get($options, 'ttl', Datetime::DAY * 2);
+        $ttl = Arr::get($options, 'ttl', Datetime::DAY * 2);
 
         $cloudQueue = $this->getQueue($queue);
 
@@ -85,10 +108,10 @@ class RackspaceCloudQueue extends Queue implements QueueInterface
     /**
      * Push a new job onto the queue after a delay.
      *
-     * @param \DateTime|int $delay
-     * @param string        $job
-     * @param string        $data
-     * @param null          $queue
+     * @param  DateTime|int $delay
+     * @param  string        $job
+     * @param  string        $data
+     * @param  null          $queue
      * @return mixed|void
      */
     public function later($delay, $job, $data = '', $queue = null)
@@ -100,14 +123,14 @@ class RackspaceCloudQueue extends Queue implements QueueInterface
      * Pop the next job off of the queue.
      *
      * @param  string $queue
-     * @return \Illuminate\Queue\Jobs\Job|null|RackspaceCloudQueueJob
+     * @return Illuminate\Queue\Jobs\Job|null|RackspaceCloudQueueJob
      */
     public function pop($queue = null)
     {
         $cloudQueue = $this->getQueue($queue);
 
         /**
-         * @var \OpenCloud\Common\Collection\PaginatedIterator $response
+         * @var OpenCloud\Common\Collection\PaginatedIterator $response
          */
         $response = $cloudQueue->claimMessages(
             array(
@@ -116,25 +139,20 @@ class RackspaceCloudQueue extends Queue implements QueueInterface
                 'ttl'   => 5 * Datetime::MINUTE,
             ));
 
-        if ( $response and $response->valid() ) {
+        if ($response and $response->valid()) {
             $message = $response->current();
 
-            return new RackspaceCloudQueueJob($this->container, $cloudQueue, $queue, $message);
+            return new RackspaceCloudQueueJob($this->container, $cloudQueue, $queue, $message, $this->connectionName);
         }
     }
 
     /**
      * Get the queue or return the default.
-     * @param $queue
+     * @param  $queue
      * @return OpenCloudQueue
-     * @throws \OpenCloud\Common\Exceptions\InvalidArgumentError
      */
     protected function getQueue($queue)
     {
-        if ( is_null($queue) ) {
-            return $this->queue;
-        }
-
-        return $this->openCloudService->createQueue($queue);
+        return is_null($queue) ? $this->queue : $this->openCloudService->createQueue($queue);
     }
 }

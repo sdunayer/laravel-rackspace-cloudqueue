@@ -1,4 +1,6 @@
-<?php namespace Tailwind\RackspaceCloudQueue;
+<?php
+
+namespace Tailwind\RackspaceCloudQueue;
 
 use Illuminate\Support\ServiceProvider;
 use Tailwind\RackspaceCloudQueue\Queue\Connectors\RackspaceCloudQueueConnector;

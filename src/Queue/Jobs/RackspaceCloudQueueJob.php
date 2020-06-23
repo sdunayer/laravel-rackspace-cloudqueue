@@ -1,7 +1,11 @@
-<?php namespace Tailwind\RackspaceCloudQueue\Queue\Jobs;
+<?php
+
+namespace Tailwind\RackspaceCloudQueue\Queue\Jobs;
 
 use Illuminate\Container\Container;
 use Illuminate\Queue\Jobs\Job;
+use Illuminate\Contracts\Queue\Job as JobContract;
+
 use OpenCloud\Queues\Resource\Queue as OpenCloudQueue;
 use OpenCloud\Queues\Resource\Message;
 
@@ -9,10 +13,10 @@ use OpenCloud\Queues\Resource\Message;
  * Class RackspaceCloudQueueJob
  * @package Tailwind\RackspaceCloudQueue\Queue\Jobs
  */
-class RackspaceCloudQueueJob extends Job
+class RackspaceCloudQueueJob extends Job implements JobContract
 {
     /**
-     * The Rackspace OpenCloud Queue instance.
+     * The Rackspace OpenCloudQueue instance.
      *
      * @var OpenCloudQueue
      */
@@ -28,25 +32,17 @@ class RackspaceCloudQueueJob extends Job
     /**
      * @param Container      $container
      * @param OpenCloudQueue $openCloudQueue
-     * @param                $queue
+     * @param string         $queue
      * @param Message        $message
+     * @param string         $connectionName
      */
-    public function __construct(Container $container, OpenCloudQueue $openCloudQueue, $queue, Message $message)
+    public function __construct(Container $container, OpenCloudQueue $openCloudQueue, $queue, Message $message, string $connectionName)
     {
         $this->openCloudQueue = $openCloudQueue;
         $this->message        = $message;
         $this->queue          = $queue;
         $this->container      = $container;
-    }
-
-    /**
-     * Fire the job.
-     *
-     * @return void
-     */
-    public function fire()
-    {
-        $this->resolveAndFire(json_decode($this->getRawBody(), true));
+        $this->connectionName = $connectionName;
     }
 
     /**
@@ -63,11 +59,12 @@ class RackspaceCloudQueueJob extends Job
     /**
      * Get the number of times the job has been attempted.
      *
-     * @throws \RuntimeException
+     * @throws RuntimeException
      */
     public function attempts()
     {
-        throw new \RuntimeException('RackspaceCloudQueueJob::attempts() is unsupported');
+        return 1;
+        throw new RuntimeException('RackspaceCloudQueueJob::attempts() is unsupported');
     }
 
     /**
@@ -102,5 +99,4 @@ class RackspaceCloudQueueJob extends Job
     {
         return $this->message->getId();
     }
-
 }

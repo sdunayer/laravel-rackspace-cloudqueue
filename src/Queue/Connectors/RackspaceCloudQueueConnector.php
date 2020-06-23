@@ -1,6 +1,9 @@
-<?php namespace Tailwind\RackspaceCloudQueue\Queue\Connectors;
+<?php
+
+namespace Tailwind\RackspaceCloudQueue\Queue\Connectors;
 
 use Illuminate\Queue\Connectors\ConnectorInterface;
+use Illuminate\Support\Arr;
 use OpenCloud\Queues\Service;
 use OpenCloud\Rackspace;
 use Tailwind\RackspaceCloudQueue\Queue\RackspaceCloudQueue;
@@ -13,12 +16,12 @@ class RackspaceCloudQueueConnector implements ConnectorInterface
 {
 
     /**
-     * @var \OpenCloud\Rackspace
+     * @var OpenCloud\Rackspace
      */
     protected $connection = null;
 
     /**
-     * @var \OpenCloud\Queues\Service
+     * @var OpenCloud\Queues\Service
      */
     protected $service = null;
 
@@ -26,11 +29,11 @@ class RackspaceCloudQueueConnector implements ConnectorInterface
      * Establish a queue connection.
      *
      * @param  array $config
-     * @return \Illuminate\Queue\QueueInterface
+     * @return Illuminate\Queue\QueueInterface
      */
     public function connect(array $config)
     {
-        switch ( $config['endpoint'] ) {
+        switch ($config['endpoint']) {
             case 'US':
                 $endpoint = Rackspace::US_IDENTITY_ENDPOINT;
                 break;
@@ -39,7 +42,7 @@ class RackspaceCloudQueueConnector implements ConnectorInterface
                 $endpoint = Rackspace::UK_IDENTITY_ENDPOINT;
         }
 
-        if ( $this->connection == null ) {
+        if ($this->connection == null) {
             $this->connection = new Rackspace(
                 $endpoint,
                 array(
@@ -49,11 +52,11 @@ class RackspaceCloudQueueConnector implements ConnectorInterface
             );
         }
 
-        if ( $this->service === null ) {
+        if ($this->service === null) {
             $this->service = $this->connection->queuesService(
                 Service::DEFAULT_NAME,
                 $config['region'],
-                array_get($config,'urlType','internalURL')
+                Arr::get($config,'urlType','internalURL')
             );
         }
 
@@ -61,5 +64,4 @@ class RackspaceCloudQueueConnector implements ConnectorInterface
 
         return new RackspaceCloudQueue($this->service, $config['queue']);
     }
-
 }
